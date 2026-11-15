@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zuno">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1626">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Zuno — короткие видео</title>
+<style>
+:root{--bg:#0d1626;--ink:#f4f6fb;--dim:#9aa7bd;--acc:#ffd23f;--mint:#5ee0c0;--sheet:#17233a;color-scheme:dark;box-sizing:border-box}
+*{box-sizing:inherit}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#feed{position:fixed;inset:0;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none}
+#feed::-webkit-scrollbar{display:none}
+.slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;background:#000}
+.slide canvas,.slide video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.shade{position:absolute;inset:auto 0 0 0;height:45%;background:linear-gradient(transparent,rgba(5,9,18,.85));pointer-events:none}
+.meta{position:absolute;left:16px;right:84px;bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+.tag{display:inline-block;background:var(--acc);color:#1a1400;font-weight:700;font-size:13px;padding:4px 10px;border-radius:99px}
+.title{font-size:22px;font-weight:800;line-height:1.2;margin:10px 0 6px}
+.why{font-size:13px;color:var(--mint)}
+.side{position:absolute;right:12px;bottom:calc(92px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px;align-items:center}
+.btn{width:52px;height:52px;border-radius:50%;border:0;background:rgba(13,22,38,.7);color:var(--ink);font-size:24px;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px)}
+.btn:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.btn.on{background:var(--acc);color:#1a1400}
+.top{position:fixed;top:0;left:0;right:0;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;z-index:5}
+.top b{font-size:20px;letter-spacing:.5px;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+.top span{font-size:14px;color:var(--ink);opacity:.85;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+#hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(13,22,38,.85);padding:12px 18px;border-radius:14px;font-size:15px;z-index:12;transition:opacity .6s;pointer-events:none}
+#sheet{position:fixed;left:0;right:0;bottom:0;max-height:78%;overflow:auto;background:var(--sheet);border-radius:22px 22px 0 0;padding:20px 18px calc(24px + env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .25s;z-index:10}
+#sheet.open{transform:none}
+#sheet h2{margin:0 0 4px;font-size:19px}
+#sheet p{margin:0 0 14px;color:var(--dim);font-size:13px;line-height:1.4}
+.row{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:10px;margin:8px 0;font-size:14px}
+.bar{height:10px;border-radius:6px;background:#26354f;position:relative;overflow:hidden}
+.bar i{position:absolute;top:0;bottom:0;left:50%;background:var(--mint);border-radius:6px}
+.bar i.neg{background:#ff7a7a}
+.act{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.act button,.act select,.file{background:#26354f;color:var(--ink);border:0;border-radius:12px;padding:12px 14px;font-size:14px;cursor:pointer;font-family:inherit}
+.act .p{background:var(--acc);color:#1a1400;font-weight:700}
+.file input{display:none}
+.acct{margin:0 0 12px;padding:10px 12px;background:#1f2e49;border-radius:12px;font-size:13px;line-height:1.4}
+.act input.t{flex:1 1 100%;background:#26354f;color:var(--ink);border:0;border-radius:12px;padding:12px 14px;font-size:14px;font-family:inherit}
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s;z-index:9}
+#scrim.open{opacity:1;pointer-events:auto}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;z-index:8;background:rgba(13,22,38,.94);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:1;border:0;background:none;color:var(--dim);font-size:15px;font-weight:700;padding:16px 0;cursor:pointer;font-family:inherit}
+.tabs button.on{color:var(--acc)}
+#accView{display:none;position:fixed;inset:0;z-index:7;background:var(--bg);overflow:auto;padding:calc(24px + env(safe-area-inset-top,0px)) 18px calc(84px + env(safe-area-inset-bottom,0px))}
+.aw{max-width:520px;margin:0 auto}
+.av{width:84px;height:84px;border-radius:50%;background:var(--mint);color:#06201a;font-size:36px;font-weight:800;display:grid;place-items:center;margin-bottom:12px}
+.aw h2{margin:0 0 4px;font-size:24px}
+.aw h3{margin:22px 0 8px;font-size:17px}
+.sub{margin:0 0 10px;color:var(--dim);font-size:14px;line-height:1.4}
+.stats{display:flex;gap:12px;margin:14px 0}
+.st{flex:1;background:var(--sheet);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.st b{font-size:22px}.st span{font-size:13px;color:var(--dim)}
+.pbtn{background:var(--acc);color:#1a1400;font-weight:700;border:0;border-radius:12px;padding:13px 18px;font-size:15px;cursor:pointer;font-family:inherit}
+.mv{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--sheet);border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14px}
+.mv button{background:#3a2530;color:#ff9a9a;border:0;border-radius:10px;padding:8px 12px;cursor:pointer;font-family:inherit}
+.note{margin-top:22px;font-size:12px;color:var(--dim);line-height:1.5}
+.in{width:100%;background:var(--sheet);color:var(--ink);border:1px solid #2c3e5e;border-radius:12px;padding:13px 14px;font-size:16px;font-family:inherit;margin:0 0 10px}
+.lnk{background:none;border:0;color:var(--dim);text-decoration:underline;font-size:14px;margin:12px 0 0 10px;cursor:pointer;font-family:inherit}
+.pbtn:disabled{opacity:.6}
+@media (prefers-reduced-motion:reduce){#sheet,#hint,#scrim{transition:none}}
+</style>
+</head>
+<body>
+<noscript><div style="position:fixed;inset:0;z-index:99;background:#0d1626;color:#f4f6fb;display:grid;place-items:center;padding:24px;text-align:center;font:18px/1.4 system-ui,sans-serif">Zuno не запускается в режиме предпросмотра файла. Откройте файл в браузере (Safari или Chrome).</div></noscript>
+<div class="top"><b>Zuno</b><span>Для вас</span></div>
+<div id="feed" aria-label="Лента видео"></div>
+<div id="hint">Листайте вверх — лента подстроится под вас</div>
+<div id="accView"></div>
+<nav class="tabs"><button data-t="feed" class="on">Лента</button><button data-t="acc">Аккаунт</button></nav>
+<div id="scrim"></div>
+<div id="sheet" role="dialog" aria-label="Ваши интересы">
+  <h2>Что лента о вас знает</h2>
+  <p>Рекомендации считаются прямо на вашем устройстве: по времени просмотра, лайкам и пропускам. Ничего не отправляется на сервер, VPN не нужен.</p>
+  <div id="acct" class="acct"></div><div id="prefs"></div>
+  <div class="act">
+    <input id="upTitle" class="t" maxlength="80" placeholder="Название видео" aria-label="Название видео">
+    <select id="upTag" aria-label="Тема своего видео"></select>
+    <label class="file">Выложить видео<input id="upFile" type="file" accept="video/*"></label>
+    <button id="reset">Сбросить интересы</button>
+    <button class="p" id="close">Готово</button>
+  </div>
+</div>
+<script>
+const TAGS={music:'Музыка',sport:'Спорт',food:'Еда',space:'Космос',nature:'Природа',humor:'Юмор',tech:'Технологии',art:'Арт'};
+const CLIPS=[
+['music','Бит, который не отпускает',320,3],['music','Вечерний лоу-фай',270,1],
+['sport','Рекорд на турнике',20,0],['sport','Утренняя пробежка у воды',190,1],
+['food','Борщ за 15 минут',8,2],['food','Идеальный омлет',45,0],
+['space','Как выглядит рассвет на орбите',250,2],['space','Танец планет',280,0],
+['nature','Волны на закате',200,1],['nature','Лес после дождя',140,0],
+['humor','Кот против пылесоса',330,2],['humor','Когда понедельник уже в среду',60,3],
+['tech','Робот учится ходить',170,3],['tech','Код, который работает с первого раза',150,2],
+['art','Краски в движении',300,1],['art','Геометрия настроения',10,2]
+].map((c,i)=>({id:'c'+i,tag:c[0],title:c[1],hue:c[2],type:c[3]}));
+let uploads=[];
+const feed=document.getElementById('feed');
+let S={aff:{},likes:{}};
+try{const r=localStorage.getItem('zuno');if(r)S=JSON.parse(r)}catch(e){}
+const save=()=>{try{localStorage.setItem('zuno',JSON.stringify(S))}catch(e){}};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const aff=t=>S.aff[t]||0;
+let recent=[];
+function pickBatch(n){
+  const out=[];
+  for(let k=0;k<n;k++){
+    const pool=CLIPS.concat(uploads).filter(c=>!recent.includes(c.id)&&!c.removed);
+    let c;
+    if(Math.random()<.2||Object.keys(S.aff).length===0){c=pool[Math.floor(Math.random()*pool.length)]}
+    else{c=pool.map(x=>({x,s:aff(x.tag)+(x.up?1.5:0)+Math.random()*1.4})).sort((a,b)=>b.s-a.s)[0].x}
+    recent.push(c.id);if(recent.length>6)recent.shift();out.push(c);
+  }
+  return out;
+}
+const slides=[];let active=-1,startT=0;
+function reason(c){
+  const a=aff(c.tag);
+  if(c.up)return (c.local||c.author===UID)?'Ваше видео':(c.authorName?'Автор: '+c.authorName:'Видео от пользователя');
+  if(a>1.5)return 'Вам нравится: '+TAGS[c.tag];
+  if(a<-1)return 'Редкая тема — проверим интерес';
+  return 'Новая тема для вас';
+}
+function add(c){
+  const el=document.createElement('section');el.className='slide';
+  let media;
+  if(c.src){media=document.createElement('video');media.src=c.src;media.loop=true;media.muted=true;media.playsInline=true}
+  else{media=document.createElement('canvas');media.width=360;media.height=640}
+  el.appendChild(media);
+  el.insertAdjacentHTML('beforeend',`<div class="shade"></div>
+  <div class="meta"><span class="tag">#${TAGS[c.tag]}</span><div class="title"></div><div class="why"></div></div>
+  <div class="side"><button class="btn like" aria-label="Нравится">♥</button><button class="btn me" aria-label="Мои интересы">☰</button></div>`);
+  el.querySelector('.title').textContent=c.title;
+  el.querySelector('.why').textContent=reason(c);
+  const lk=el.querySelector('.like');
+  if(S.likes[c.id])lk.classList.add('on');
+  lk.onclick=()=>{
+    const on=!S.likes[c.id];S.likes[c.id]=on;lk.classList.toggle('on',on);
+    S.aff[c.tag]=clamp(aff(c.tag)+(on?3:-3),-6,12);save();
+  };
+  el.querySelector('.me').onclick=openSheet;
+  const o={c,el,media};slides.push(o);feed.appendChild(el);io.observe(el);
+}
+function finish(){
+  if(active<0)return;
+  const s=slides[active],dur=s.media.duration||8;
+  const w=(performance.now()-startT)/1000;
+  const ratio=w/(isFinite(dur)?dur:8);
+  const d=w<1.5?-1:clamp((ratio-.5)*2,-1,2);
+  S.aff[s.c.tag]=clamp(aff(s.c.tag)*.98+d,-6,12);save();
+}
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting&&e.intersectionRatio>=.6){
+      const i=slides.findIndex(s=>s.el===e.target);
+      if(i===active)return;
+      finish();
+      if(active>=0&&slides[active].media.pause)slides[active].media.pause();
+      active=i;startT=performance.now();
+      const m=slides[i].media;if(m.play)m.play().catch(()=>{});
+      slides[i].el.querySelector('.why').textContent=reason(slides[i].c);
+      if(i>=slides.length-3)pickBatch(5).forEach(add);
+      document.getElementById('hint').style.opacity=0;
+    }
+  });
+},{root:feed,threshold:[.6]});
+/* generated "clips" */
+function draw(ctx,w,h,t,hue,type){
+  const g=ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,`hsl(${hue},60%,16%)`);g.addColorStop(1,`hsl(${(hue+50)%360},65%,32%)`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  if(type===0){for(let i=0;i<14;i++){const x=(Math.sin(t*.6+i*1.7)*.5+.5)*w,y=(Math.cos(t*.45+i*2.3)*.5+.5)*h,r=30+(i%5)*14;
+    ctx.fillStyle=`hsla(${hue+i*12},85%,65%,.35)`;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill()}}
+  else if(type===1){for(let k=0;k<6;k++){ctx.beginPath();ctx.moveTo(0,h);
+    for(let x=0;x<=w;x+=8)ctx.lineTo(x,h*.35+k*45+Math.sin(x/38+t*1.4+k)*(18+k*4));
+    ctx.lineTo(w,h);ctx.fillStyle=`hsla(${hue+k*14},80%,60%,.28)`;ctx.fill()}}
+  else if(type===2){for(let i=0;i<9;i++){const r=((t*60+i*45)%400);
+    ctx.strokeStyle=`hsla(${hue+i*10},90%,70%,${1-r/400})`;ctx.lineWidth=4;ctx.beginPath();ctx.arc(w/2,h*.45,r,0,7);ctx.stroke()}}
+  else{const n=14,bw=w/n;for(let i=0;i<n;i++){const v=(Math.sin(t*3+i*.8)*.5+.5)*(Math.sin(t*1.1+i)*.3+.7);
+    ctx.fillStyle=`hsl(${hue+i*8},85%,62%)`;ctx.fillRect(i*bw+4,h*.7-v*h*.45,bw-8,v*h*.45)}}
+}
+const R=i=>{const x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x)};
+function scene(ctx,w,h,t,hue,tag,v){
+  const lg=(y0,y1,a,b)=>{const g=ctx.createLinearGradient(0,y0,0,y1);g.addColorStop(0,a);g.addColorStop(1,b);return g};
+  if(tag==='space'){
+    ctx.fillStyle=lg(0,h,'#050816','#150b33');ctx.fillRect(0,0,w,h);
+    for(let i=0;i<150;i++){const a=R(i)*6.283,z=(t*.28+R(i+50))%1,r=z*z;
+      ctx.fillStyle=`rgba(255,255,255,${z})`;ctx.fillRect(w/2+Math.cos(a)*r*w*.9,h/2+Math.sin(a)*r*h*.65,1+z*2.4,1+z*2.4)}
+    const px=w*.72,py=h*.24,g=ctx.createRadialGradient(px-14,py-14,6,px,py,48);
+    g.addColorStop(0,`hsl(${hue},75%,72%)`);g.addColorStop(1,`hsl(${hue+30},70%,18%)`);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,48,0,7);ctx.fill();
+    if(v%2){ctx.strokeStyle='rgba(255,230,180,.6)';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(px,py,86,16,-.35,0,7);ctx.stroke()}
+  }else if(tag==='nature'){
+    ctx.fillStyle=lg(0,h*.62,'#2b1a4d','#ff8a4c');ctx.fillRect(0,0,w,h*.62);
+    const sy=h*.5+Math.sin(t*.4)*8;ctx.fillStyle='#ffd36b';ctx.beginPath();ctx.arc(w/2,sy,60,0,7);ctx.fill();
+    for(let k=0;k<2;k++){ctx.fillStyle=k?'#1d0f3a':'#4a2a5c';ctx.beginPath();ctx.moveTo(0,h*.62);
+      for(let x=0;x<=w;x+=10)ctx.lineTo(x,h*.62-40-k*18-Math.sin(x/50+k*2.5)*30-Math.sin(x/17+k)*8);
+      ctx.lineTo(w,h*.62);ctx.fill()}
+    ctx.fillStyle=lg(h*.62,h,'#c4486a','#1b1138');ctx.fillRect(0,h*.62,w,h*.38);
+    for(let i=0;i<18;i++){ctx.fillStyle=`rgba(255,211,107,${.55-i*.028})`;
+      const ww=(130-i*5)*(1+Math.sin(t*2+i)*.2);ctx.fillRect(w/2-ww/2,h*.63+i*i*1.5,ww,2+i*.2)}
+  }else if(tag==='music'){
+    ctx.fillStyle=lg(0,h,`hsl(${hue},45%,12%)`,`hsl(${hue+40},50%,22%)`);ctx.fillRect(0,0,w,h);
+    ctx.save();ctx.translate(w/2,h*.38);ctx.rotate(t*2.2);
+    ctx.fillStyle='#0c0c10';ctx.beginPath();ctx.arc(0,0,130,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;for(let r=50;r<126;r+=8){ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.stroke()}
+    ctx.fillStyle=`hsl(${hue},80%,60%)`;ctx.beginPath();ctx.arc(0,0,42,0,7);ctx.fill();
+    ctx.fillStyle='#0c0c10';ctx.beginPath();ctx.arc(0,0,5,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.12)';ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,128,-.5,.1);ctx.fill();ctx.restore();
+    for(let i=0;i<20;i++){const b=(Math.sin(t*(3+v)+i*.7)*.5+.5)*(Math.sin(t*1.3+i*1.9)*.3+.7)*110;
+      ctx.fillStyle=`hsl(${hue+i*6},85%,62%)`;ctx.fillRect(10+i*17.5,h*.82-b,12,b)}
+  }else if(tag==='food'){
+    ctx.fillStyle=lg(0,h,'#3b1d14','#a2481f');ctx.fillRect(0,0,w,h);
+    const cx=w/2,py=h*.62;ctx.fillStyle='#3a3a46';ctx.fillRect(cx-95,py,190,120);
+    ctx.fillRect(cx-125,py+14,32,12);ctx.fillRect(cx+93,py+14,32,12);
+    ctx.fillStyle=`hsl(${hue},80%,48%)`;ctx.beginPath();ctx.ellipse(cx,py,95,20,0,0,7);ctx.fill();
+    for(let i=0;i<7;i++){const p=(t*.8+R(i))%1;ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.arc(cx-70+R(i+3)*140,py-6+Math.sin(p*6.28)*6,3+p*5,0,7);ctx.fill()}
+    for(let i=0;i<14;i++){const p=(t*.22+R(i))%1;ctx.fillStyle=`rgba(255,255,255,${.28*(1-p)})`;
+      ctx.beginPath();ctx.arc(cx+Math.sin(p*7+i)*(20+p*30)+(R(i+8)-.5)*80,py-p*h*.42,14+p*40,0,7);ctx.fill()}
+  }else if(tag==='sport'){
+    ctx.fillStyle=lg(0,h*.45,'#4aa3ff','#bfe6ff');ctx.fillRect(0,0,w,h*.45);
+    ctx.fillStyle='#c0502d';ctx.beginPath();ctx.moveTo(w/2-30,h*.45);ctx.lineTo(w/2+30,h*.45);ctx.lineTo(w*1.2,h);ctx.lineTo(-w*.2,h);ctx.fill();
+    ctx.fillStyle='#2f8f4e';ctx.fillRect(0,h*.45,w*.12,h*.55);ctx.fillRect(w*.88,h*.45,w*.12,h*.55);
+    ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=3;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(w/2+i*8,h*.45);ctx.lineTo(w/2+i*w*.45,h);ctx.stroke()}
+    for(let k=0;k<10;k++){const p=(k/10+t*.5)%1,y=h*.45+p*p*h*.55;ctx.fillStyle='rgba(255,255,255,.45)';ctx.fillRect(w/2-p*w*.7,y,p*w*1.4,1+p*5)}
+    const bx=w/2+Math.sin(t*1.3)*80,bh=Math.abs(Math.sin(t*3));
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(bx,h*.8,36-bh*14,8,0,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(bx,h*.8-20-bh*150,28,0,7);ctx.fill();
+    ctx.strokeStyle=`hsl(${hue},80%,45%)`;ctx.lineWidth=3;ctx.beginPath();ctx.arc(bx,h*.8-20-bh*150,28,t*4,t*4+2);ctx.stroke();
+  }else if(tag==='humor'){
+    ctx.fillStyle=lg(0,h,`hsl(${hue},75%,50%)`,`hsl(${hue+60},75%,35%)`);ctx.fillRect(0,0,w,h);
+    for(let i=0;i<40;i++){ctx.save();ctx.translate(R(i)*w+Math.sin(t+i)*20,((t*.2+R(i+7))%1)*h);ctx.rotate(t*2+i);
+      ctx.fillStyle=`hsl(${i*37},90%,65%)`;ctx.fillRect(-5,-3,10,6);ctx.restore()}
+    const s=1+Math.sin(t*6)*.08;ctx.save();ctx.translate(w/2,h*.5-Math.abs(Math.sin(t*3))*90);
+    ctx.rotate(Math.sin(t*3)*.2);ctx.scale(s,2-s);ctx.font='140px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(['😹','🐈','🙀','😅'][v%4],0,0);ctx.restore();
+  }else if(tag==='tech'){
+    ctx.fillStyle='#030b12';ctx.fillRect(0,0,w,h);
+    const gl=ctx.createRadialGradient(w/2,h*.4,10,w/2,h*.4,150+Math.sin(t*2)*20);gl.addColorStop(0,'rgba(60,200,255,.45)');gl.addColorStop(1,'rgba(60,200,255,0)');
+    ctx.fillStyle=gl;ctx.fillRect(0,0,w,h);ctx.font='14px monospace';
+    for(let c=0;c<Math.floor(w/16);c++){const y=(t*(60+R(c)*80)+R(c+3)*h*2)%(h*1.4);
+      for(let k=0;k<12;k++){ctx.fillStyle=`rgba(80,255,200,${1-k/12})`;ctx.fillText(((c*7+k+Math.floor(t*6))%2)?'1':'0',c*16,y-k*16)}}
+  }else{
+    ctx.fillStyle='#0b0b17';ctx.fillRect(0,0,w,h);ctx.lineWidth=1.5;
+    for(let i=0;i<36;i++){ctx.strokeStyle=`hsla(${hue+i*5},90%,65%,.55)`;ctx.beginPath();
+      for(let a=0;a<=6.283;a+=.05){const x=w/2+Math.sin(a*3+t+i*.12)*w*.42*(.4+i/60),y=h*.45+Math.sin(a*2+t*.8+i*.05)*h*.27;a?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+      ctx.stroke()}
+  }
+}
+function loop(now){
+  if(active>=0){const s=slides[active];
+    if(s.media.getContext){const cv=s.media;scene(cv.getContext('2d'),cv.width,cv.height,(now-startT)/1000,s.c.hue,s.c.tag,s.c.type)}}
+  requestAnimationFrame(loop);
+}
+/* interests sheet */
+const sheet=document.getElementById('sheet'),scrim=document.getElementById('scrim');
+function openSheet(){
+  const box=document.getElementById('prefs');box.innerHTML='';
+  Object.keys(TAGS).sort((a,b)=>aff(b)-aff(a)).forEach(t=>{
+    const v=aff(t),pct=Math.abs(v)/12*50;
+    const r=document.createElement('div');r.className='row';
+    r.innerHTML=`<span>${TAGS[t]}</span><div class="bar"><i class="${v<0?'neg':''}" style="${v<0?'right:50%;left:auto':'left:50%'};width:${pct}%"></i></div>`;
+    box.appendChild(r);
+  });
+  sheet.classList.add('open');scrim.classList.add('open');
+}
+function closeSheet(){sheet.classList.remove('open');scrim.classList.remove('open')}
+scrim.onclick=closeSheet;document.getElementById('close').onclick=closeSheet;
+document.getElementById('reset').onclick=()=>{S={aff:{},likes:{}};save();openSheet()};
+const up=document.getElementById('upTag');
+Object.keys(TAGS).forEach(k=>up.add(new Option(TAGS[k],k)));
+document.getElementById('upFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const c={id:'u'+Date.now(),tag:up.value,title:f.name.replace(/\.[^.]+$/,''),src:URL.createObjectURL(f),up:true};
+  uploads.push(c);closeSheet();
+  const i=Math.max(active,0)+1;
+  /* вставляем своё видео следующим */
+  add(c);const last=slides.pop();slides.splice(i,0,last);
+  feed.insertBefore(last.el,slides[i+1]?slides[i+1].el:null);
+  slides[i].el.scrollIntoView({behavior:'smooth'});
+};
+let TOKEN=null,UID=null,ME=null,mode='login';
+const NATIVE=location.protocol==='capacitor:';let SERVER='';try{SERVER=localStorage.getItem('zuno_server')||''}catch(e){}
+try{TOKEN=localStorage.getItem('zuno_token')}catch(e){}
+const accV=document.getElementById('accView'),tabBtns=document.querySelectorAll('.tabs button');
+function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+const say=m=>{const h=document.getElementById('hint');h.textContent=m;h.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>{h.style.opacity=0},3500)};
+const LOCAL=true;
+const memo={};
+const LS={get(k,d){try{const v=localStorage.getItem(k);if(v)return JSON.parse(v)}catch(e){}return k in memo?memo[k]:d},set(k,v){memo[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const BLOBS={},URLS={};
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('zuno',1);r.onupgradeneeded=()=>r.result.createObjectStore('v');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+async function idbPut(k,b){const d=await idb();return new Promise((res,rej)=>{const t=d.transaction('v','readwrite');t.objectStore('v').put(b,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+async function idbGet(k){const d=await idb();return new Promise((res,rej)=>{const q=d.transaction('v').objectStore('v').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+async function idbDel(k){const d=await idb();return new Promise((res,rej)=>{const t=d.transaction('v','readwrite');t.objectStore('v').delete(k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+const rnd=n=>Array.from(crypto.getRandomValues(new Uint8Array(n))).map(b=>b.toString(16).padStart(2,'0')).join('');
+async function H(pw,saltHex){
+  if(window.crypto&&crypto.subtle){const salt=Uint8Array.from(saltHex.match(/../g).map(x=>parseInt(x,16)));
+    const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+    const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},key,256);
+    return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+  let h1=0xdeadbeef,h2=0x41c6ce57;const str=saltHex+pw;
+  for(let i=0;i<str.length;i++){const c=str.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (h2>>>0).toString(16)+(h1>>>0).toString(16)}
+async function localApi(path,opt){
+  const m=(opt.method||'GET').toUpperCase();
+  const body=()=>{try{return JSON.parse(opt.body)}catch(e){return {}}};
+  const users=LS.get('zuno_users',{}),sess=LS.get('zuno_sess',{}),vids=LS.get('zuno_vids',[]);
+  const me=()=>{const uid=sess[TOKEN];const u=uid&&Object.values(users).find(x=>x.id===uid);if(!u)throw new Error('Войдите в аккаунт');return u};
+  const mk=u=>{const t=rnd(16);sess[t]=u.id;LS.set('zuno_sess',sess);return {token:t,user:{id:u.id,name:u.name}}};
+  if(path==='/api/auth/register'){const b=body(),un=String(b.username||'').trim().toLowerCase();
+    if(!/^[a-z0-9_]{3,20}$/.test(un))throw new Error('Логин: 3–20 символов, латиница, цифры и _');
+    if(String(b.password||'').length<8)throw new Error('Пароль: минимум 8 символов');
+    if(users[un])throw new Error('Этот логин занят');
+    const salt=rnd(16),u={id:Date.now(),username:un,name:String(b.name||'').trim().slice(0,40)||un,salt,hash:await H(String(b.password),salt)};
+    users[un]=u;LS.set('zuno_users',users);return mk(u)}
+  if(path==='/api/auth/login'){const b=body(),u=users[String(b.username||'').trim().toLowerCase()];
+    if(!u||u.hash!==await H(String(b.password||''),u.salt))throw new Error('Неверный логин или пароль');return mk(u)}
+  if(path==='/api/me'){const u=me();return {user:{id:u.id,name:u.name}}}
+  if(path==='/api/auth/logout'){delete sess[TOKEN];LS.set('zuno_sess',sess);return {ok:true}}
+  if(path==='/api/auth/password'){const u=me(),b=body();
+    if(u.hash!==await H(String(b.old||''),u.salt))throw new Error('Текущий пароль неверный');
+    if(String(b.new||'').length<8)throw new Error('Пароль: минимум 8 символов');
+    u.salt=rnd(16);u.hash=await H(String(b.new),u.salt);LS.set('zuno_users',users);return {ok:true}}
+  if(path==='/api/videos'&&m==='GET'){const out=[];
+    for(const v of vids){if(!URLS[v.id]){let bl=BLOBS[v.id];if(!bl){try{bl=await idbGet(v.id)}catch(e){}}if(!bl)continue;URLS[v.id]=URL.createObjectURL(bl)}
+      out.push(Object.assign({},v,{url:URLS[v.id]}))}
+    return out.reverse()}
+  if(path==='/api/videos'&&m==='POST'){const u=me(),f=opt.body.get('video');if(!f)throw new Error('Нужен видеофайл');
+    const id=Date.now();BLOBS[id]=f;try{await idbPut(id,f)}catch(e){}
+    vids.push({id,title:String(opt.body.get('title')||'Без названия').slice(0,80),tag:String(opt.body.get('tag')||'art'),authorId:u.id,author:u.name,created:id});
+    LS.set('zuno_vids',vids);return {id}}
+  const dm=path.match(/^\/api\/videos\/(\d+)$/);
+  if(dm&&m==='DELETE'){const u=me(),id=+dm[1],i=vids.findIndex(v=>v.id===id&&v.authorId===u.id);
+    if(i<0)throw new Error('Видео не найдено');vids.splice(i,1);LS.set('zuno_vids',vids);try{await idbDel(id)}catch(e){}return {ok:true}}
+  throw new Error('Недоступно')}
+async function api(path,opt){opt=opt||{};if(LOCAL)return localApi(path,opt);const hd=opt.headers||{};if(TOKEN)hd.Authorization='Bearer '+TOKEN;
+  if(NATIVE&&!SERVER)throw new Error('Сначала укажите адрес сервера во вкладке «Аккаунт»');const r=await fetch((NATIVE?SERVER:'')+path,Object.assign({},opt,{headers:hd}));let d={};try{d=await r.json()}catch(e){}
+  if(!r.ok)throw new Error(d.error||('Ошибка '+r.status));return d}
+const JSONH={'Content-Type':'application/json'};
+function setSession(t,u){TOKEN=t;UID=u?u.id:null;ME=u||null;try{t?localStorage.setItem('zuno_token',t):localStorage.removeItem('zuno_token')}catch(e){}renderAcct()}
+function renderAcct(){document.getElementById('acct').textContent=UID?('Вы вошли как '+ME.name+'. Видео сохраняются на этом устройстве.'):'Войдите во вкладке «Аккаунт», чтобы сохранять свои видео.'}
+function hideRemoved(){slides.forEach(s=>{if(s.c.removed)s.el.style.display='none'})}
+function showTab(n){accV.style.display=n==='acc'?'block':'none';tabBtns.forEach(b=>b.classList.toggle('on',b.dataset.t===n));
+  const m=active>=0&&slides[active].media;if(m&&m.pause){if(n==='acc')m.pause();else m.play().catch(()=>{})}
+  if(n==='acc')renderAccount()}
+tabBtns.forEach(b=>{b.onclick=()=>showTab(b.dataset.t)});
+function insertNext(c){const i=Math.max(active,0)+1;add(c);const last=slides.pop();slides.splice(i,0,last);feed.insertBefore(last.el,slides[i+1]?slides[i+1].el:null);slides[i].el.scrollIntoView({behavior:'smooth'})}
+function fromApi(v){return{id:'p'+v.id,vid:v.id,tag:TAGS[v.tag]?v.tag:'art',title:v.title,src:(NATIVE?SERVER:'')+v.url,up:true,author:v.authorId,authorName:v.author}}
+async function loadVideos(){try{const list=await api('/api/videos');const have=new Set(uploads.map(c=>c.id)),alive=new Set(list.map(v=>'p'+v.id));
+  list.forEach(v=>{if(!have.has('p'+v.id))uploads.push(fromApi(v))});
+  uploads.forEach(c=>{if(c.vid&&!alive.has(c.id))c.removed=true});hideRemoved()}catch(e){}}
+function renderAccount(){
+  accV.textContent='';const w=el('div','aw');
+  if(!UID){
+    if(NATIVE&&!SERVER){
+      w.append(el('h2',null,'Подключение к серверу'),el('p','sub','Zuno работает и без сервера: лента и ваши видео остаются на этом телефоне. Чтобы регистрироваться и делиться видео с другими, вставьте адрес сервера Zuno (https://…).'));
+      const sv=el('input','in');sv.type='url';sv.placeholder='https://адрес-сервера';sv.autocapitalize='none';sv.spellcheck=false;
+      const bb=el('button','pbtn','Подключить');
+      bb.onclick=()=>{let u=sv.value.trim().replace(/\/+$/,'');if(!u)return;if(!/^https?:\/\//i.test(u))u='https://'+u;SERVER=u;try{localStorage.setItem('zuno_server',u)}catch(e){}loadVideos();renderAccount()};
+      w.append(sv,bb);accV.append(w);return}
+    const reg=mode==='reg';
+    w.append(el('h2',null,reg?'Регистрация':'Вход'),el('p','sub',reg?'Придумайте логин и пароль. Аккаунт хранится только на этом устройстве, восстановить пароль нельзя.':'Войдите, чтобы публиковать видео.'));
+    const lg=el('input','in');lg.placeholder='Логин (латиница, цифры, _)';lg.maxLength=20;lg.autocomplete='username';lg.autocapitalize='none';lg.spellcheck=false;
+    const pw=el('input','in');pw.type='password';pw.placeholder='Пароль (минимум 8 символов)';pw.maxLength=128;pw.autocomplete=reg?'new-password':'current-password';
+    const nm=el('input','in');nm.placeholder='Имя в Zuno (необязательно)';nm.maxLength=40;nm.style.display=reg?'block':'none';
+    const b=el('button','pbtn',reg?'Зарегистрироваться':'Войти');
+    const go=async()=>{b.disabled=true;try{
+      const r=await api(reg?'/api/auth/register':'/api/auth/login',{method:'POST',headers:JSONH,body:JSON.stringify({username:lg.value,password:pw.value,name:nm.value})});
+      setSession(r.token,r.user);say(reg?'Аккаунт создан':'Вы вошли');renderAccount();return
+    }catch(e){say(e.message)}b.disabled=false};
+    b.onclick=go;pw.onkeydown=e=>{if(e.key==='Enter')go()};
+    const sw=el('button','lnk',reg?'Уже есть аккаунт? Войти':'Нет аккаунта? Зарегистрироваться');
+    sw.onclick=()=>{mode=reg?'login':'reg';renderAccount()};
+    w.append(lg,pw,nm,b,sw);
+    if(NATIVE){const cs=el('button','lnk','Сменить сервер');cs.onclick=()=>{SERVER='';try{localStorage.removeItem('zuno_server')}catch(e){}renderAccount()};w.append(cs)}accV.append(w);return}
+  const av=el('div','av',(ME.name||'?').trim().charAt(0).toUpperCase());
+  w.append(av,el('h2',null,ME.name),el('p','sub','Можно публиковать видео'));
+  const mine=uploads.filter(c=>c.vid&&!c.removed&&c.author===UID);
+  const likes=Object.keys(S.likes).filter(k=>S.likes[k]).length;
+  const st=el('div','stats');[[mine.length,'видео'],[likes,'лайков']].forEach(x=>{const d=el('div','st');d.append(el('b',null,String(x[0])),el('span',null,x[1]));st.append(d)});w.append(st);
+  const top=Object.keys(TAGS).filter(t=>aff(t)>.5).sort((a,b)=>aff(b)-aff(a)).slice(0,3).map(t=>TAGS[t]);
+  w.append(el('p','sub','Ваши интересы: '+(top.length?top.join(', '):'пока изучаем')));
+  const pub=el('button','pbtn','Выложить видео');pub.onclick=openSheet;w.append(pub);
+  w.append(el('h3',null,'Мои видео'));
+  if(!mine.length)w.append(el('p','sub','Пока пусто. Нажмите «Выложить видео».'));
+  mine.forEach(c=>{const r=el('div','mv');r.append(el('span',null,c.title+' · #'+TAGS[c.tag]));
+    const x=el('button',null,'Удалить');x.onclick=async()=>{try{await api('/api/videos/'+c.vid,{method:'DELETE'});c.removed=true;hideRemoved();renderAccount()}catch(e){say(e.message)}};r.append(x);w.append(r)});
+  const cp=el('button','lnk','Сменить пароль');cp.onclick=async()=>{const o=prompt('Текущий пароль');if(!o)return;const n=prompt('Новый пароль (минимум 8 символов)');if(!n)return;try{await api('/api/auth/password',{method:'POST',headers:JSONH,body:JSON.stringify({old:o,new:n})});say('Пароль изменён')}catch(e){say(e.message)}};
+  const out=el('button','lnk','Выйти');out.onclick=async()=>{try{await api('/api/auth/logout',{method:'POST'})}catch(e){}setSession(null,null);renderAccount()};w.append(cp,out);
+  accV.append(w)}
+document.getElementById('upFile').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  const ti=document.getElementById('upTitle'),title=(ti.value.trim()||f.name.replace(/\.[^.]+$/,'')).slice(0,80);
+  if(!UID){const c={id:'u'+Date.now(),tag:up.value,title,src:URL.createObjectURL(f),up:true,local:true};uploads.push(c);closeSheet();showTab('feed');insertNext(c);say('Видео пропадёт после закрытия. Войдите, чтобы сохранить его');return}
+  const fd=new FormData();fd.append('title',title);fd.append('tag',up.value);fd.append('video',f);
+  try{say('Загружаем видео…');const r=await api('/api/videos',{method:'POST',body:fd});
+    ti.value='';closeSheet();showTab('feed');await loadVideos();
+    const c=uploads.find(x=>x.vid===r.id);if(c)insertNext(c);say('Опубликовано')}
+  catch(err){say(err.message)}
+};
+renderAcct();
+(async()=>{
+  try{if(TOKEN){const r=await api('/api/me');setSession(TOKEN,r.user)}}catch(e){setSession(null,null)}
+  loadVideos();
+})();
+setInterval(loadVideos,30000);
+pickBatch(6).forEach(add);
+requestAnimationFrame(loop);
+setTimeout(()=>{document.getElementById('hint').style.opacity=0},4000);
+</script>
+</body>
+</html>
